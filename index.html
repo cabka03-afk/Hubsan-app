@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Hubsan Flow | Smart Invoice Manager</title>
+    <!-- Tesseract.js for OCR (client-side extraction) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <!-- Font Awesome Icons & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background: #f0f4f8;
+            padding: 2rem 1.5rem;
+            color: #1a2c3e;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* header */
+        .header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+            border-bottom: 3px solid #2c7da0;
+            padding-bottom: 1rem;
+        }
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1f5e7e, #2c7da0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
+        }
+        .badge {
+            background: #e9ecef;
+            padding: 0.3rem 1rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        /* Grid layout */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 1.8rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+            overflow: hidden;
+            transition: all 0.2s ease;
+            border: 1px solid #e2edf2;
+        }
+        .card-header {
+            background: #f9fcff;
+            padding: 1.2rem 1.5rem;
+            border-bottom: 1px solid #e9eef3;
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            font-weight: 600;
+            font-size: 1.25rem;
+            color: #1e5a74;
+        }
+        .card-header i {
+            font-size: 1.4rem;
+        }
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        /* forms & lists */
+        .upload-area, .add-item-area {
+            margin-bottom: 1.5rem;
+        }
+        .file-label, .btn {
+            background: #eef2f7;
+            padding: 0.6rem 1rem;
+            border-radius: 60px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: 0.2s;
+            border: none;
+        }
+        .btn-primary {
+            background: #2c7da0;
+            color: white;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .btn-primary:hover {
+            background: #1f5e7e;
+            transform: translateY(-1px);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #cbdbe0;
+        }
+        .customer-list, .item-list {
+            max-height: 220px;
+            overflow-y: auto;
+            margin-top: 0.8rem;
+            border-top: 1px solid #eef2f8;
+            padding-top: 0.8rem;
+        }
+        .list-tag {
+            background: #f1f5f9;
+            padding: 0.4rem 0.9rem;
+            border-radius: 40px;
+            margin: 0.3rem 0.4rem;
+            display: inline-block;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 18px;
+            border: 1px solid #cfdfe9;
+            background: white;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+        .invoice-upload-card {
+            grid-column: span 1;
+        }
+        .ocr-result {
+            background: #f8fafc;
+            border-radius: 20px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-size: 0.85rem;
+            border-left: 4px solid #2c7da0;
+        }
+        .upload-preview {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 12px 0;
+        }
+        .capture-btn {
+            background: #1e4663;
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-weight: 500;
+        }
+        .status-msg {
+            font-size: 0.8rem;
+            margin-top: 10px;
+            color: #2c7a4d;
+        }
+        .send-integration {
+            margin-top: 1.3rem;
+            background: #eaf9f0;
+            padding: 1rem;
+            border-radius: 24px;
+        }
+        button:active { transform: scale(0.97);}
+        hr { margin: 1rem 0; }
+        .warning {
+            color: #b23c1c;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="header">
+        <div>
+            <h1><i class="fas fa-dron"></i> Hubsan · Invoice Flow</h1>
+            <p style="color:#4b6f86;">Smart capture → Auto-extract → Sync to QuickBooks & others</p>
+        </div>
+        <div class="badge"><i class="fas fa-cloud-upload-alt"></i> Ready for 3rd party</div>
+    </div>
+
+    <div class="dashboard">
+        <!-- CUSTOMER CARD -->
+        <div class="card">
+            <div class="card-header"><i class="fas fa-users"></i> Customers</div>
+            <div class="card-body">
+                <div class="flex-between">
+                    <span><i class="fas fa-upload"></i> Bulk upload (JSON/CSV)</span>
+                    <label class="file-label btn-outline" style="background:#fff;"><i class="fas fa-file-csv"></i> Upload list
+                        <input type="file" id="customerFileUpload" accept=".json,.csv" style="display:none">
+                    </label>
+                </div>
+                <div class="add-item-area">
+                    <input type="text" id="newCustomerName" placeholder="New customer name, e.g. 'Acme Corp'">
+                    <button id="addCustomerBtn" class="btn btn-primary" style="margin-top:8px; width:100%"><i class="fas fa-plus-circle"></i> Add Customer</button>
+                </div>
+                <div><strong>📋 Customer roster</strong> <span id="customerCount"></span></div>
+                <div id="customerListContainer" class="customer-list"></div>
+            </div>
+        </div>
+
+        <!-- ITEMS CARD -->
+        <div class="card">
+            <div class="card-header"><i class="fas fa-boxes"></i> Items / Products</div>
+            <div class="card-body">
+                <div class="flex-between">
+                    <span><i class="fas fa-upload"></i> Bulk items (JSON/CSV)</span>
+                    <label class="file-label btn-outline" style="background:#fff;"><i class="fas fa-database"></i> Upload
+                        <input type="file" id="itemsFileUpload" accept=".json,.csv" style="display:none">
+                    </label>
+                </div>
+                <div class="add-item-area">
+                    <input type="text" id="newItemName" placeholder="Item name e.g. 'Drone X7'">
+                    <input type="text" id="newItemPrice" placeholder="Price (optional)">
+                    <button id="addItemBtn" class="btn btn-primary" style="margin-top:8px; width:100%"><i class="fas fa-tag"></i> Add Item</button>
+                </div>
+                <div><strong>📦 Inventory</strong> <span id="itemCount"></span></div>
+                <div id="itemListContainer" class="item-list"></div>
+            </div>
+        </div>
+
+        <!-- INVOICE UPLOAD + OCR + EXTRACTION + 3rd PARTY -->
+        <div class="card invoice-upload-card">
+            <div class="card-header"><i class="fas fa-file-invoice-dollar"></i> Smart Invoice Capture</div>
+            <div class="card-body">
+                <div class="upload-area">
+                    <label class="btn btn-primary" style="background:#1f6390;"><i class="fas fa-image"></i> Insert picture
+                        <input type="file" id="invoiceImageInput" accept="image/*" capture="environment" style="display:none">
+                    </label>
+                    <button id="captureNowBtn" class="capture-btn" style="margin-left: 10px;"><i class="fas fa-camera"></i> Capture now</button>
+                    <div class="upload-preview" id="imagePreview"></div>
+                </div>
+                <button id="extractViaOCR" class="btn btn-outline" style="width:100%; background:#eef2fa;"><i class="fas fa-magic"></i> 🔍 Auto-extract (Invoice Text)</button>
+                <div id="extractedInvoiceInfo" class="ocr-result">
+                    <i class="fas fa-spinner fa-pulse"></i> No invoice processed yet. Upload or capture, then click extract.
+                </div>
+
+                <!-- editable fields after OCR -->
+                <div style="margin-top: 12px;">
+                    <label>Customer name</label>
+                    <input type="text" id="invoiceCustomer" placeholder="Auto-filled from OCR" list="customerDatalist">
+                    <datalist id="customerDatalist"></datalist>
+                    <label>Invoice Number</label>
+                    <input type="text" id="invoiceNumber" placeholder="INV-001">
+                    <label>Date (YYYY-MM-DD)</label>
+                    <input type="date" id="invoiceDate">
+                    <label>Items (comma separated names from your inventory)</label>
+                    <input type="text" id="invoiceItemsRaw" placeholder="e.g., Drone X7, Battery pack">
+                    <label>Total Amount</label>
+                    <input type="number" id="invoiceAmount" step="any" placeholder="0.00">
+                </div>
+
+                <!-- 3rd party integration simulation -->
+                <div class="send-integration">
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <button id="sendToQuickbooksBtn" class="btn btn-primary" style="background:#2c7da0;"><i class="fab fa-quickbooks"></i> Sync to QuickBooks</button>
+                        <button id="sendToOtherAppBtn" class="btn btn-outline"><i class="fas fa-cloud-upload-alt"></i> Other App (Webhook)</button>
+                    </div>
+                    <div id="integrationStatus" class="status-msg"></div>
+                    <p style="font-size:0.7rem; margin-top: 10px;"><i class="fas fa-info-circle"></i> Extract invoice → confirm fields → push to external APIs (simulation includes console + mock)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ------------------- DATA MODELS -------------------
+    let customers = [];
+    let items = [];       // each item: { name, price }
+
+    // DOM elements
+    const customerListDiv = document.getElementById('customerListContainer');
+    const itemListDiv = document.getElementById('itemListContainer');
+    const customerCountSpan = document.getElementById('customerCount');
+    const itemCountSpan = document.getElementById('itemCount');
+    const newCustomerInput = document.getElementById('newCustomerName');
+    const addCustomerBtn = document.getElementById('addCustomerBtn');
+    const newItemName = document.getElementById('newItemName');
+    const newItemPrice = document.getElementById('newItemPrice');
+    const addItemBtn = document.getElementById('addItemBtn');
+    const customerFileUpload = document.getElementById('customerFileUpload');
+    const itemsFileUpload = document.getElementById('itemsFileUpload');
+    const invoiceImageInput = document.getElementById('invoiceImageInput');
+    const captureNowBtn = document.getElementById('captureNowBtn');
+    const extractBtn = document.getElementById('extractViaOCR');
+    const imagePreviewDiv = document.getElementById('imagePreview');
+    const extractedDiv = document.getElementById('extractedInvoiceInfo');
+    const invoiceCustomerInput = document.getElementById('invoiceCustomer');
+    const invoiceNumberInput = document.getElementById('invoiceNumber');
+    const invoiceDateInput = document.getElementById('invoiceDate');
+    const invoiceItemsRawInput = document.getElementById('invoiceItemsRaw');
+    const invoiceAmountInput = document.getElementById('invoiceAmount');
+    const sendQB = document.getElementById('sendToQuickbooksBtn');
+    const sendOther = document.getElementById('sendToOtherAppBtn');
+    const integrationStatus = document.getElementById('integrationStatus');
+    const customerDatalist = document.getElementById('customerDatalist');
+
+    let currentExtractedData = {};  // store latest extraction
+
+    // ---------- helpers: render customers & items & update datalist ----------
+    function renderCustomers() {
+        customerListDiv.innerHTML = '';
+        if (customers.length === 0) {
+            customerListDiv.innerHTML = '<div class="list-tag">No customers yet. Add or upload.</div>';
+        } else {
+            customers.forEach((cust, idx) => {
+                const chip = document.createElement('span');
+                chip.className = 'list-tag';
+                chip.innerHTML = `${escapeHtml(cust)} <i class="fas fa-times-circle" style="margin-left: 6px; cursor:pointer; color:#b91c1c;" data-name="${escapeHtml(cust)}"></i>`;
+                chip.querySelector('i')?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const nameToDel = e.target.getAttribute('data-name');
+                    customers = customers.filter(c => c !== nameToDel);
+                    saveToLocal();
+                    renderCustomers();
+                    updateDatalist();
+                });
+                customerListDiv.appendChild(chip);
+            });
+        }
+        customerCountSpan.innerText = `(${customers.length})`;
+        updateDatalist();
+    }
+
+    function updateDatalist() {
+        customerDatalist.innerHTML = '';
+        customers.forEach(c => {
+            const option = document.createElement('option');
+            option.value = c;
+            customerDatalist.appendChild(option);
+        });
+    }
+
+    function renderItems() {
+        itemListDiv.innerHTML = '';
+        if (items.length === 0) {
+            itemListDiv.innerHTML = '<div class="list-tag">No items. Add products first.</div>';
+        } else {
+            items.forEach((itm, idx) => {
+                const chip = document.createElement('span');
+                chip.className = 'list-tag';
+                chip.innerHTML = `${escapeHtml(itm.name)} ${itm.price ? `($${itm.price})` : ''} <i class="fas fa-trash-alt" style="margin-left:6px; cursor:pointer; color:#a03e2c;" data-index="${idx}"></i>`;
+                chip.querySelector('i')?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const idxDel = parseInt(e.target.getAttribute('data-index'));
+                    items.splice(idxDel, 1);
+                    saveToLocal();
+                    renderItems();
+                });
+                itemListDiv.appendChild(chip);
+            });
+        }
+        itemCountSpan.innerText = `(${items.length})`;
+    }
+
+    function escapeHtml(str) { return String(str).replace(/[&<>]/g, function(m){ if(m === '&') return '&amp;'; if(m === '<') return '&lt;'; if(m === '>') return '&gt;'; return m;}); }
+
+    // save to localStorage for persistence
+    function saveToLocal() {
+        localStorage.setItem('hubsan_customers', JSON.stringify(customers));
+        localStorage.setItem('hubsan_items', JSON.stringify(items));
+    }
+    function loadFromLocal() {
+        const storedCust = localStorage.getItem('hubsan_customers');
+        if(storedCust) customers = JSON.parse(storedCust);
+        const storedItems = localStorage.getItem('hubsan_items');
+        if(storedItems) items = JSON.parse(storedItems);
+        if(customers.length === 0) customers = ['Dunder Mifflin', 'Stark Industries', 'Wayne Enterprises'];
+        if(items.length === 0) items = [{name:'DJI Mini', price:'499'},{name:'Battery Plus', price:'79'},{name:'Propeller Set', price:'29'}];
+        renderCustomers();
+        renderItems();
+    }
+
+    // handle upload csv/json generic
+    function handleFileUpload(file, type) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const content = e.target.result;
+            if (file.name.endsWith('.json')) {
+                try {
+                    const arr = JSON.parse(content);
+                    if (type === 'customer' && Array.isArray(arr)) customers.push(...arr.filter(v => typeof v === 'string'));
+                    else if (type === 'item' && Array.isArray(arr)) items.push(...arr);
+                    else alert('invalid format');
+                } catch(err){ alert('JSON error'); }
+            } 
+            else if (file.name.endsWith('.csv')) {
+                const lines = content.split(/\r?\n/);
+                if (type === 'customer') {
+                    lines.forEach(line => { if(line.trim()) customers.push(line.trim()); });
+                } else if (type === 'item') {
+                    lines.forEach(line => {
+                        const parts = line.split(',');
+                        if(parts[0]) items.push({ name: parts[0].trim(), price: parts[1] ? parts[1].trim() : '' });
+                    });
+                }
+            }
+            saveToLocal();
+            renderCustomers();
+            renderItems();
+        };
+        reader.readAsText(file);
+    }
+
+    customerFileUpload.addEventListener('change', (e) => { if(e.target.files[0]) handleFileUpload(e.target.files[0], 'customer'); });
+    itemsFileUpload.addEventListener('change', (e) => { if(e.target.files[0]) handleFileUpload(e.target.files[0], 'item'); });
+    addCustomerBtn.addEventListener('click', () => { let name = newCustomerInput.value.trim(); if(name) { customers.push(name); saveToLocal(); renderCustomers(); newCustomerInput.value=''; } });
+    addItemBtn.addEventListener('click', () => { let name = newItemName.value.trim(); if(name) { items.push({name, price: newItemPrice.value.trim()}); saveToLocal(); renderItems(); newItemName.value=''; newItemPrice.value=''; } });
+
+    // ----- Image preview + OCR logic -----
+    let currentImageFile = null;
+    invoiceImageInput.addEventListener('change', (e) => {
+        if(e.target.files && e.target.files[0]) {
+            currentImageFile = e.target.files[0];
+            displayImagePreview(currentImageFile);
+        }
+    });
+    captureNowBtn.addEventListener('click', () => {
+        invoiceImageInput.click(); // triggers camera on mobile + file picker
+    });
+    function displayImagePreview(file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            imagePreviewDiv.innerHTML = `<img src="${ev.target.result}" style="max-width:100%; max-height:120px; border-radius:16px; border:1px solid #ccc;"> <span style="font-size:12px;">${file.name}</span>`;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // OCR extract (using Tesseract)
+    extractBtn.addEventListener('click', async () => {
+        if (!currentImageFile) {
+            extractedDiv.innerHTML = '<span class="warning">⚠️ Please upload or capture an invoice image first.</span>';
+            return;
+        }
+        extractedDiv.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> OCR scanning invoice... please wait.';
+        try {
+            const { data: { text } } = await Tesseract.recognize(currentImageFile, 'eng', { logger: m => console.log(m) });
+            // smart parsing: try to extract customer name, invoice#, date, items keyword, amount
+            const parsed = parseInvoiceText(text);
+            currentExtractedData = parsed;
+            invoiceCustomerInput.value = parsed.customer || '';
+            invoiceNumberInput.value = parsed.invoiceNumber || '';
+            if(parsed.date) invoiceDateInput.value = parsed.date;
+            invoiceItemsRawInput.value = parsed.itemsText || '';
+            invoiceAmountInput.value = parsed.amount || '';
+            extractedDiv.innerHTML = `<i class="fas fa-check-circle" style="color:#2c7da0;"></i> OCR extracted!<br><strong>Preview:</strong> ${text.substring(0, 200)}...<br> → Customer: ${parsed.customer || '❓'} | Inv: ${parsed.invoiceNumber || '❓'}`;
+        } catch(err) {
+            extractedDiv.innerHTML = `<span class="warning">OCR error: ${err.message}. Try clearer image.</span>`;
+            console.error(err);
+        }
+    });
+
+    function parseInvoiceText(text) {
+        const lines = text.split(/\r?\n/);
+        let customer = '';
+        let invoiceNumber = '';
+        let date = '';
+        let amount = '';
+        let itemsText = '';
+        // heuristics
+        const invMatch = text.match(/INVOICE\s*#?\s*[:]?\s*([A-Z0-9\-]+)/i) || text.match(/Invoice Number[:.\s]+([A-Z0-9\-]+)/i);
+        if(invMatch) invoiceNumber = invMatch[1];
+        const dateMatch = text.match(/(\d{4}[-\/]\d{1,2}[-\/]\d{1,2})|(\d{1,2}[-\/]\d{1,2}[-\/]\d{4})/);
+        if(dateMatch) {
+            let raw = dateMatch[0];
+            if(raw.includes('/')) raw = raw.replace(/\//g,'-');
+            date = raw;
+        }
+        const amountMatch = text.match(/Total[\s]*[:]?[\s]*\$?\s*(\d+[.,]?\d*)/i) || text.match(/Amount Due[\s]*[:]?[\s]*\$?\s*(\d+[.,]?\d*)/i);
+        if(amountMatch) amount = amountMatch[1].replace(',','');
+        // customer name guess: try lines that might be company
+        for(let line of lines) {
+            if(line.length > 3 && line.length < 40 && (line.match(/inc|corp|llc|ltd|co\./i) || customers.some(cust => line.toLowerCase().includes(cust.toLowerCase())))) {
+                customer = line.trim();
+                break;
+            }
+        }
+        // if no customer, take first non-empty line maybe
+        if(!customer && lines[0] && lines[0].length < 50) customer = lines[0].trim();
+        // items lines: try to find product-like
+        const itemsCandidates = lines.filter(l => l.match(/\d+\.\d+/g) && l.length > 5).slice(0,2);
+        if(itemsCandidates.length) itemsText = itemsCandidates.join(', ');
+        return { customer, invoiceNumber, date, amount, itemsText };
+    }
+
+    // Function to send invoice data to third-party (simulate QuickBooks & generic webhook)
+    function buildInvoicePayload() {
+        let selectedCustomer = invoiceCustomerInput.value.trim();
+        if(selectedCustomer === '') selectedCustomer = 'Unknown Client';
+        const invoiceData = {
+            customer: selectedCustomer,
+            invoice_number: invoiceNumberInput.value.trim() || 'N/A',
+            date: invoiceDateInput.value || new Date().toISOString().slice(0,10),
+            items: invoiceItemsRawInput.value.trim() || 'No items listed',
+            total_amount: parseFloat(invoiceAmountInput.value) || 0,
+            source: "Hubsan OCR",
+            timestamp: new Date().toISOString()
+        };
+        return invoiceData;
+    }
+
+    async function sendToQuickBooks() {
+        const payload = buildInvoicePayload();
+        integrationStatus.innerText = '⏳ Sending to QuickBooks Sandbox...';
+        // simulation of QuickBooks Online API (mock)
+        setTimeout(() => {
+            console.log('[QuickBooks Mock] Invoice created:', payload);
+            integrationStatus.innerHTML = `✅ Simulated QuickBooks sync success! Invoice #${payload.invoice_number} for ${payload.customer}. <br><small>(Demo mode - real OAuth required for production)</small>`;
+        }, 800);
+        // In real scenario you would POST to QB endpoint
+    }
+
+    async function sendToOtherApp() {
+        const payload = buildInvoicePayload();
+        integrationStatus.innerText = '⏳ Sending to Generic Webhook / ERP...';
+        // simulate generic third-party (Zapier, custom app)
+        setTimeout(() => {
+            console.log('[ThirdParty] Webhook payload', payload);
+            integrationStatus.innerHTML = `🚀 Delivered to external app (webhook mock). Data: ${payload.customer} - $${payload.total_amount}`;
+        }, 600);
+    }
+
+    sendQB.addEventListener('click', () => { sendToQuickBooks(); });
+    sendOther.addEventListener('click', () => { sendToOtherApp(); });
+
+    // also allow manual update from extracted data, re-populate datalist
+    function refreshDatalist() { updateDatalist(); }
+
+    loadFromLocal();
+    refreshDatalist();
+
+    // add sample event for invoice fields reset optionally
+    // when user uploads new image, we might reset preview but keep fields? good.
+</script>
+</body>
+</html>
