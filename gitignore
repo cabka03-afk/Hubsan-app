@@ -1,0 +1,50 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.directory
+*.swp
+*.swo
+
+# Vercel / deployment
+.vercel
+vercel.log
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+*.sublime-workspace
+
+# Environment files (if you add backend later)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependency directories (if you add package.json later)
+node_modules/
+jspm_packages/
+
+# Optional: Keep local backups
+*.bak
+*.tmp
+*.temp
+
+# OCR temp files (if any)
+ocr_cache/
+tesseract_temp/
